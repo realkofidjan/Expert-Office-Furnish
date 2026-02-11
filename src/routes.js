@@ -8,7 +8,6 @@ import {
   MdRequestQuote,
   MdNotifications,
   MdPeople,
-  MdLock,
 } from "react-icons/md";
 
 // Admin Imports
@@ -19,9 +18,6 @@ import Orders from "views/admin/orders";
 import Quotes from "views/admin/quotes";
 import Notifications from "views/admin/notifications";
 import Customers from "views/admin/customers";
-
-// Auth Imports
-import SignIn from "views/auth/signIn";
 
 const routes = [
   {
@@ -78,13 +74,6 @@ const routes = [
     path: "/customers",
     icon: <Icon as={MdPeople} width="20px" height="20px" color="inherit" />,
     component: <Customers />,
-  },
-  {
-    name: "Sign In",
-    layout: "/auth",
-    path: "/sign-in",
-    icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
-    component: <SignIn />,
   },
 ];
 
