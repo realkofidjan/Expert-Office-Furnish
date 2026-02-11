@@ -15,6 +15,7 @@ import {
   useColorModeValue,
   Alert,
   AlertIcon,
+  useToast,
 } from "@chakra-ui/react";
 import DefaultAuth from "layouts/auth/Default";
 import illustration from "assets/img/auth/auth.png";
@@ -34,12 +35,19 @@ function SignIn() {
 
   const { login, loading } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     const result = await login(email, password);
     if (result.success) {
+      toast({
+        title: "Signed in successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
       navigate("/admin/dashboard");
     } else {
       setError(result.error);

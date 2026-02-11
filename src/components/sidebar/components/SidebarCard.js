@@ -1,8 +1,6 @@
 import {
-  Button,
   Flex,
   Image,
-  Link,
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
@@ -10,7 +8,10 @@ import logoWhite from "assets/img/layout/logoWhite.png";
 import React from "react";
 
 export default function SidebarDocs() {
-  const bgColor = "linear-gradient(135deg, #868CFF 0%, #4318FF 100%)";
+  const bgColor = useColorModeValue(
+    "linear-gradient(135deg, #258013 0%, #1E6B10 100%)",
+    "linear-gradient(135deg, #33CC77 0%, #258013 100%)"
+  );
   const borderColor = useColorModeValue("white", "navy.800");
 
   return (
@@ -24,7 +25,7 @@ export default function SidebarDocs() {
       <Flex
         border='5px solid'
         borderColor={borderColor}
-        bg='linear-gradient(135deg, #868CFF 0%, #4318FF 100%)'
+        bg='linear-gradient(135deg, #33CC77 0%, #258013 100%)'
         borderRadius='50%'
         w='94px'
         h='94px'
@@ -53,7 +54,7 @@ export default function SidebarDocs() {
           px='10px'
           mt="10px"
           mb='6px'>
-          Upgrade to PRO
+          Expert Office Furnish
         </Text>
         <Text
           fontSize='14px'
@@ -62,24 +63,9 @@ export default function SidebarDocs() {
           px='10px'
           mb='6px'
           textAlign='center'>
-          Improve your development process and start doing more with Horizon UI
-          PRO!
+          Your trusted partner for premium office furniture solutions.
         </Text>
       </Flex>
-      <Link href='https://horizon-ui.com/pro?ref=horizon-chakra-free'>
-        <Button
-          bg='whiteAlpha.300'
-          _hover={{ bg: "whiteAlpha.200" }}
-          _active={{ bg: "whiteAlpha.100" }}
-          mb={{ sm: "16px", xl: "24px" }}
-          color={"white"}
-          fontWeight='regular'
-          fontSize='sm'
-          minW='185px'
-          mx='auto'>
-          Upgrade to PRO
-        </Button>
-      </Link>
     </Flex>
   );
 }

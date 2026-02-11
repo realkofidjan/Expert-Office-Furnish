@@ -12,6 +12,7 @@ import {
   Text,
   useColorModeValue,
   useColorMode,
+  useToast,
 } from '@chakra-ui/react';
 import { SearchBar } from 'components/navbar/searchBar/SearchBar';
 import PropTypes from 'prop-types';
@@ -46,6 +47,7 @@ export default function HeaderLinks(props) {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const navbarIcon = useColorModeValue('gray.400', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -60,6 +62,12 @@ export default function HeaderLinks(props) {
 
   const handleLogout = () => {
     logout();
+    toast({
+      title: "Logged out successfully",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
     navigate('/auth/sign-in');
   };
 
@@ -257,7 +265,7 @@ export default function HeaderLinks(props) {
             _hover={{ cursor: 'pointer' }}
             color="white"
             name={initials}
-            bg="#11047A"
+            bg="brand.500"
             size="sm"
             w="40px"
             h="40px"

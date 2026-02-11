@@ -23,7 +23,6 @@ import {
 
 // Custom components
 import IconBox from "components/icons/IconBox";
-import { HorizonLogo } from "components/icons/Icons";
 import { SidebarResponsive } from "components/sidebar/Sidebar";
 import { SidebarContext } from "contexts/SidebarContext";
 
@@ -93,18 +92,14 @@ export default function AuthNavbar(props) {
   let brand = (
     <Link
       href={`${process.env.PUBLIC_URL}/#/`}
-      target='_blank'
       display='flex'
       lineHeight='100%'
       fontWeight='bold'
       justifyContent='center'
       alignItems='center'
       color={mainText}>
-      <Stack direction='row' spacing='12px' align='center' justify='center'>
-        <HorizonLogo h='26px' w='175px' color={logoColor} />
-      </Stack>
-      <Text fontsize='sm' mt='3px'>
-        {logoText}
+      <Text fontSize='md' fontWeight='bold'>
+        Expert Office Furnish
       </Text>
     </Link>
   );
@@ -113,14 +108,15 @@ export default function AuthNavbar(props) {
       <Link
         minW='175px'
         href={`${process.env.PUBLIC_URL}/#/`}
-        target='_blank'
         display='flex'
         lineHeight='100%'
         fontWeight='bold'
         justifyContent='center'
         alignItems='center'
         color={mainText}>
-        <HorizonLogo h='26px' w='175px' my='32px' color={logoColor} />
+        <Text fontSize='md' fontWeight='bold'>
+          Expert Office Furnish
+        </Text>
       </Link>
     );
     // mainText = useColorModeValue("gray.700", "gray.200");
@@ -479,21 +475,6 @@ export default function AuthNavbar(props) {
             />
           </Box>
           {linksAuth}
-          <Link href='https://www.horizon-ui.com/pro'>
-            <Button
-              bg={bgButton}
-              color={colorButton}
-              fontSize='xs'
-              variant='no-effects'
-              borderRadius='50px'
-              px='45px'
-              display={{
-                sm: "none",
-                lg: "flex",
-              }}>
-              Buy Now
-            </Button>
-          </Link>
         </Flex>
       </Flex>
     </SidebarContext.Provider>
