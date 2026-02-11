@@ -21,6 +21,7 @@ import {
 import { MdPeople, MdSearch } from "react-icons/md";
 import Card from "components/card/Card";
 import { listCustomers } from "api/customers";
+import Pagination from "components/pagination/Pagination";
 
 export default function Customers() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
@@ -31,6 +32,8 @@ export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -47,6 +50,10 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const filtered = customers.filter((c) => {
     if (!search) return true;
@@ -101,7 +108,15 @@ export default function Customers() {
               {search ? "No customers match your search" : "No customers found"}
             </Text>
           </Flex>
-        ) : (
+        ) : (() => {
+          const totalPages = Math.ceil(filtered.length / pageSize);
+          const safeCurrentPage = Math.min(currentPage, totalPages || 1);
+          const paginatedCustomers = filtered.slice(
+            (safeCurrentPage - 1) * pageSize,
+            safeCurrentPage * pageSize
+          );
+          return (
+          <>
           <Box overflowX="auto" borderRadius="12px" border="1px solid" borderColor={borderColor}>
             <Table variant="simple" size="md">
               <Thead>
@@ -114,7 +129,7 @@ export default function Customers() {
                 </Tr>
               </Thead>
               <Tbody>
-                {filtered.map((customer, i) => (
+                {paginatedCustomers.map((customer, i) => (
                   <Tr key={customer.id || customer.uid || i} _hover={{ bg: rowHover }}>
                     <Td borderColor={borderColor}>
                       <Text color={textColor} fontWeight="600" fontSize="sm">
@@ -158,7 +173,16 @@ export default function Customers() {
               </Tbody>
             </Table>
           </Box>
-        )}
+          <Pagination
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filtered.length}
+            pageSize={pageSize}
+          />
+          </>
+          );
+        })()}
       </Card>
     </Box>
   );

@@ -48,3 +48,10 @@ export const batchProductUpload = async (formData) => {
   });
   return response.data;
 };
+
+export const validateBatchUpload = async (formData) => {
+  const response = await client.post("/validate-batch-upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+};

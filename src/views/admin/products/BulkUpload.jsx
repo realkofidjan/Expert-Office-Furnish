@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Button,
@@ -23,9 +23,10 @@ import {
   CloseButton,
 } from "@chakra-ui/react";
 import { useDropzone } from "react-dropzone";
-import { MdCloudUpload, MdDownload, MdCheckCircle, MdError } from "react-icons/md";
-import { batchProductUpload } from "api/products";
+import { MdCloudUpload, MdDownload, MdCheckCircle, MdError, MdWarning, MdPlayArrow, MdArrowBack } from "react-icons/md";
+import { batchProductUpload, validateBatchUpload } from "api/products";
 import { useNotifications } from "contexts/NotificationContext";
+import * as XLSX from "xlsx";
 
 const TEMPLATE_COLUMNS = [
   { key: "name", label: "Name", example: "Modern Sofa Set" },
@@ -46,12 +47,46 @@ export default function BulkUpload({ onSuccess }) {
   const bgHover = useColorModeValue("gray.50", "whiteAlpha.50");
   const tableBg = useColorModeValue("white", "navy.800");
   const headerBg = useColorModeValue("gray.50", "whiteAlpha.100");
+  const errorBg = useColorModeValue("red.50", "rgba(254,178,178,0.1)");
+  const warningBg = useColorModeValue("orange.50", "rgba(251,211,141,0.1)");
+  const validBg = useColorModeValue("green.50", "rgba(154,230,180,0.08)");
+  const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
   const { addNotification } = useNotifications();
 
+  // "upload" = file select view, "preview" = row cards view, "result" = after upload
+  const [view, setView] = useState("upload");
   const [file, setFile] = useState(null);
+  const [fileRows, setFileRows] = useState([]);
+  const [fileHeaders, setFileHeaders] = useState([]);
+  const [validating, setValidating] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [validation, setValidation] = useState(null);
+  const [uploadResult, setUploadResult] = useState(null);
+
+  const parseFile = useCallback((f) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        if (json.length > 0) {
+          setFileHeaders(Object.keys(json[0]));
+          setFileRows(json);
+        } else {
+          setFileHeaders([]);
+          setFileRows([]);
+        }
+      } catch {
+        setFileHeaders([]);
+        setFileRows([]);
+        toast({ title: "Could not parse file", status: "error", duration: 3000 });
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  }, [toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -62,23 +97,65 @@ export default function BulkUpload({ onSuccess }) {
     maxFiles: 1,
     onDrop: (acceptedFiles) => {
       if (acceptedFiles.length > 0) {
-        setFile(acceptedFiles[0]);
-        setResult(null);
+        const f = acceptedFiles[0];
+        setFile(f);
+        setValidation(null);
+        setUploadResult(null);
+        setView("upload");
+        parseFile(f);
       }
     },
   });
 
-  const handleUpload = async () => {
+  const handleShowPreview = () => {
+    if (!file || fileRows.length === 0) return;
+    setValidation(null);
+    setView("preview");
+  };
+
+  const handleBack = () => {
+    setValidation(null);
+    setView("upload");
+  };
+
+  const handleValidate = async () => {
     if (!file) return;
+    setValidating(true);
+    setValidation(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const data = await validateBatchUpload(formData);
+      setValidation(data);
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.message;
+      toast({
+        title: "Validation failed",
+        description: errMsg,
+        status: "error",
+        duration: 4000,
+      });
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const validationRows = validation?.rows || [];
+  const allValid = validation && validation.invalid_rows === 0 && validationRows.length > 0;
+
+  const validationMap = {};
+  validationRows.forEach((r) => { validationMap[r.row] = r; });
+
+  const handleUpload = async () => {
+    if (!file || !allValid) return;
     setUploading(true);
-    setResult(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
       const data = await batchProductUpload(formData);
       const created = data.created || [];
       const errors = data.errors || [];
-      setResult({
+      setUploadResult({
         success: true,
         message: data.message || "Upload completed",
         created,
@@ -90,20 +167,15 @@ export default function BulkUpload({ onSuccess }) {
         title: "Bulk upload completed",
         description: `${created.length} product(s) created from "${file.name}"${errors.length > 0 ? `, ${errors.length} error(s)` : ""}`,
       });
+      setView("result");
       if (onSuccess) onSuccess();
     } catch (err) {
       const errMsg = err.response?.data?.error || err.message;
-      setResult({ success: false, message: errMsg, created: [], errors: [] });
       toast({
         title: "Upload failed",
         description: errMsg,
         status: "error",
         duration: 4000,
-      });
-      addNotification({
-        type: "error",
-        title: "Bulk upload failed",
-        description: errMsg,
       });
     } finally {
       setUploading(false);
@@ -123,11 +195,317 @@ export default function BulkUpload({ onSuccess }) {
     URL.revokeObjectURL(url);
   };
 
-  const clearResult = () => {
-    setResult(null);
+  const clearAll = () => {
     setFile(null);
+    setFileRows([]);
+    setFileHeaders([]);
+    setValidation(null);
+    setUploadResult(null);
+    setView("upload");
   };
 
+  // ── RESULT VIEW ──
+  if (view === "result" && uploadResult) {
+    return (
+      <VStack spacing="16px" align="stretch">
+        <Alert
+          status={uploadResult.success ? "success" : "error"}
+          borderRadius="12px"
+        >
+          <AlertIcon />
+          <AlertDescription flex="1">{uploadResult.message}</AlertDescription>
+          <CloseButton onClick={clearAll} />
+        </Alert>
+
+        {uploadResult.created.length > 0 && (
+          <Box>
+            <HStack mb="8px">
+              <Icon as={MdCheckCircle} color="green.500" />
+              <Text fontSize="sm" fontWeight="600">
+                {uploadResult.created.length} product(s) created
+              </Text>
+            </HStack>
+            <Box overflowX="auto" maxH="300px" overflowY="auto" borderRadius="8px" border="1px solid" borderColor={borderColor}>
+              <Table size="sm" variant="simple">
+                <Thead position="sticky" top="0" bg={tableBg}>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>SKU</Th>
+                    <Th>Status</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {uploadResult.created.map((item, i) => (
+                    <Tr key={i}>
+                      <Td fontSize="sm">{item.name || item.sku || `Product ${i + 1}`}</Td>
+                      <Td fontSize="sm">{item.sku || "--"}</Td>
+                      <Td><Badge colorScheme="green" fontSize="xs">Created</Badge></Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </Box>
+          </Box>
+        )}
+
+        {uploadResult.errors.length > 0 && (
+          <Box>
+            <HStack mb="8px">
+              <Icon as={MdError} color="red.500" />
+              <Text fontSize="sm" fontWeight="600">
+                {uploadResult.errors.length} error(s)
+              </Text>
+            </HStack>
+            <Box overflowX="auto" maxH="200px" overflowY="auto" borderRadius="8px" border="1px solid" borderColor={borderColor}>
+              <Table size="sm" variant="simple">
+                <Thead position="sticky" top="0" bg={tableBg}>
+                  <Tr>
+                    <Th>Row</Th>
+                    <Th>Error</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {uploadResult.errors.map((err, i) => (
+                    <Tr key={i}>
+                      <Td fontSize="sm">{err.row || i + 1}</Td>
+                      <Td fontSize="sm" color="red.500">{err.error || err.message || JSON.stringify(err)}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </Box>
+          </Box>
+        )}
+
+        <Flex justify="flex-end">
+          <Button variant="brand" size="sm" onClick={clearAll} borderRadius="10px">
+            Upload Another
+          </Button>
+        </Flex>
+      </VStack>
+    );
+  }
+
+  // ── PREVIEW VIEW ──
+  if (view === "preview") {
+    return (
+      <VStack spacing="16px" align="stretch">
+        {/* Header */}
+        <Flex justify="space-between" align="center" flexWrap="wrap" gap="10px">
+          <HStack spacing="10px">
+            <Button
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={MdArrowBack} />}
+              onClick={handleBack}
+              borderRadius="10px"
+            >
+              Back
+            </Button>
+            <Box>
+              <Text fontSize="md" fontWeight="600">
+                Upload Preview
+              </Text>
+              <Text fontSize="xs" color="gray.500">
+                {file?.name} &middot; {fileRows.length} row{fileRows.length !== 1 ? "s" : ""}
+              </Text>
+            </Box>
+          </HStack>
+          {!validation && !validating && (
+            <Button
+              colorScheme="blue"
+              size="sm"
+              borderRadius="10px"
+              leftIcon={<Icon as={MdPlayArrow} />}
+              onClick={handleValidate}
+            >
+              Validate
+            </Button>
+          )}
+          {validation && (
+            <Button
+              size="sm"
+              variant="outline"
+              borderRadius="10px"
+              onClick={handleValidate}
+              isLoading={validating}
+            >
+              Re-validate
+            </Button>
+          )}
+        </Flex>
+
+        {validating && (
+          <Progress size="sm" isIndeterminate colorScheme="brand" borderRadius="full" />
+        )}
+
+        {/* Validation Summary */}
+        {validation && (
+          <Flex gap="8px" flexWrap="wrap" align="center">
+            <HStack
+              bg={allValid ? "green.50" : "red.50"}
+              _dark={{ bg: allValid ? "rgba(154,230,180,0.1)" : "rgba(254,178,178,0.1)" }}
+              px="12px"
+              py="8px"
+              borderRadius="8px"
+              spacing="6px"
+              flex="1"
+            >
+              <Icon
+                as={allValid ? MdCheckCircle : MdError}
+                color={allValid ? "green.500" : "red.500"}
+                w="18px"
+                h="18px"
+              />
+              <Text fontSize="sm" fontWeight="600">
+                {allValid
+                  ? `All ${validation.total_rows} rows passed validation`
+                  : `${validation.invalid_rows} of ${validation.total_rows} rows have errors`}
+              </Text>
+            </HStack>
+            <HStack spacing="6px">
+              <Badge colorScheme="green" fontSize="xs" px="8px" py="2px" borderRadius="full">
+                {validation.valid_rows} valid
+              </Badge>
+              {validation.invalid_rows > 0 && (
+                <Badge colorScheme="red" fontSize="xs" px="8px" py="2px" borderRadius="full">
+                  {validation.invalid_rows} invalid
+                </Badge>
+              )}
+            </HStack>
+          </Flex>
+        )}
+
+        {/* File Contents Table */}
+        <Box
+          overflowX="auto"
+          borderRadius="12px"
+          border="1px solid"
+          borderColor={borderColor}
+          bg={tableBg}
+        >
+          <Table size="sm" variant="simple">
+            <Thead>
+              <Tr bg={headerBg}>
+                <Th fontSize="xs" textTransform="uppercase" whiteSpace="nowrap" py="10px" w="40px">#</Th>
+                {validation && (
+                  <Th fontSize="xs" textTransform="uppercase" whiteSpace="nowrap" py="10px" w="70px">Status</Th>
+                )}
+                {fileHeaders.map((h) => (
+                  <Th key={h} fontSize="xs" textTransform="uppercase" whiteSpace="nowrap" py="10px">
+                    {h}
+                  </Th>
+                ))}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {fileRows.map((row, i) => {
+                const rowNum = i + 2;
+                const vRow = validationMap[rowNum];
+                const hasErrors = vRow?.status === "invalid";
+                const hasWarnings = vRow?.warnings?.length > 0 && !hasErrors;
+                const isValidated = !!validation;
+                const messages = [
+                  ...(vRow?.errors || []).map((e) => ({ type: "error", text: e })),
+                  ...(vRow?.warnings || []).map((w) => ({ type: "warning", text: w })),
+                ];
+
+                let rowBg = undefined;
+                if (isValidated && vRow) {
+                  if (hasErrors) rowBg = errorBg;
+                  else if (hasWarnings) rowBg = warningBg;
+                  else rowBg = validBg;
+                }
+
+                const colCount = fileHeaders.length + 1 + (isValidated ? 1 : 0);
+
+                return (
+                  <React.Fragment key={i}>
+                    <Tr bg={rowBg}>
+                      <Td fontSize="xs" fontWeight="500" color="gray.500" whiteSpace="nowrap">{rowNum}</Td>
+                      {isValidated && (
+                        <Td>
+                          {hasErrors ? (
+                            <Icon as={MdError} color="red.500" w="15px" h="15px" />
+                          ) : hasWarnings ? (
+                            <Icon as={MdWarning} color="orange.500" w="15px" h="15px" />
+                          ) : vRow ? (
+                            <Icon as={MdCheckCircle} color="green.500" w="15px" h="15px" />
+                          ) : null}
+                        </Td>
+                      )}
+                      {fileHeaders.map((h) => (
+                        <Td
+                          key={h}
+                          fontSize="xs"
+                          color="gray.500"
+                          whiteSpace="nowrap"
+                          maxW="200px"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                        >
+                          {row[h] !== undefined && row[h] !== "" ? String(row[h]) : "--"}
+                        </Td>
+                      ))}
+                    </Tr>
+                    {isValidated && messages.length > 0 && (
+                      <Tr bg={rowBg}>
+                        <Td colSpan={colCount} py="4px" px="12px" borderTop="none">
+                          <HStack spacing="12px" flexWrap="wrap">
+                            {messages.map((m, j) => (
+                              <HStack key={j} spacing="4px">
+                                <Icon
+                                  as={m.type === "error" ? MdError : MdWarning}
+                                  color={m.type === "error" ? "red.500" : "orange.500"}
+                                  w="12px"
+                                  h="12px"
+                                  flexShrink={0}
+                                />
+                                <Text fontSize="xs" color={m.type === "error" ? "red.600" : "orange.600"}>
+                                  {m.text}
+                                </Text>
+                              </HStack>
+                            ))}
+                          </HStack>
+                        </Td>
+                      </Tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </Tbody>
+          </Table>
+        </Box>
+
+        {/* Bottom action bar */}
+        {uploading && (
+          <Progress size="sm" isIndeterminate colorScheme="brand" borderRadius="full" />
+        )}
+        <Flex justify="flex-end" gap="10px" pt="4px">
+          <Button variant="ghost" size="sm" onClick={handleBack} borderRadius="10px">
+            Cancel
+          </Button>
+          <Button
+            colorScheme="brand"
+            size="sm"
+            onClick={handleUpload}
+            isLoading={uploading}
+            isDisabled={!allValid}
+            borderRadius="10px"
+            leftIcon={<Icon as={MdCloudUpload} />}
+          >
+            {!validation
+              ? "Validate First"
+              : allValid
+              ? "Finish Upload"
+              : "Fix Errors to Upload"}
+          </Button>
+        </Flex>
+      </VStack>
+    );
+  }
+
+  // ── DEFAULT UPLOAD VIEW ──
   return (
     <VStack spacing="24px" align="stretch">
       <Flex justify="space-between" align="center" flexWrap="wrap" gap="10px">
@@ -221,7 +599,7 @@ export default function BulkUpload({ onSuccess }) {
           <VStack spacing="4px">
             <Text fontWeight="600">{file.name}</Text>
             <Text fontSize="sm" color="gray.500">
-              {(file.size / 1024).toFixed(1)} KB
+              {(file.size / 1024).toFixed(1)} KB &middot; {fileRows.length} row{fileRows.length !== 1 ? "s" : ""} found
             </Text>
           </VStack>
         ) : (
@@ -238,107 +616,21 @@ export default function BulkUpload({ onSuccess }) {
         )}
       </Box>
 
-      {uploading && (
-        <Progress size="sm" isIndeterminate colorScheme="brand" borderRadius="full" />
-      )}
-
-      {file && !uploading && (
+      {file && (
         <Flex justify="flex-end" gap="10px">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setFile(null);
-              setResult(null);
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={clearAll}>
             Clear
           </Button>
           <Button
             variant="brand"
             size="sm"
             leftIcon={<Icon as={MdCloudUpload} />}
-            onClick={handleUpload}
+            onClick={handleShowPreview}
+            isDisabled={fileRows.length === 0}
           >
             Upload Products
           </Button>
         </Flex>
-      )}
-
-      {result && (
-        <Box>
-          <Alert
-            status={result.success ? "success" : "error"}
-            borderRadius="12px"
-            mb="12px"
-          >
-            <AlertIcon />
-            <AlertDescription flex="1">{result.message}</AlertDescription>
-            <CloseButton onClick={clearResult} />
-          </Alert>
-
-          {result.created.length > 0 && (
-            <Box mb="12px">
-              <HStack mb="8px">
-                <Icon as={MdCheckCircle} color="green.500" />
-                <Text fontSize="sm" fontWeight="600">
-                  {result.created.length} product(s) created
-                </Text>
-              </HStack>
-              <Box overflowX="auto" maxH="200px" overflowY="auto" borderRadius="8px" border="1px solid" borderColor={borderColor}>
-                <Table size="sm" variant="simple">
-                  <Thead position="sticky" top="0" bg={tableBg}>
-                    <Tr>
-                      <Th>Name</Th>
-                      <Th>SKU</Th>
-                      <Th>Status</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {result.created.map((item, i) => (
-                      <Tr key={i}>
-                        <Td fontSize="sm">{item.name || item.sku || `Product ${i + 1}`}</Td>
-                        <Td fontSize="sm">{item.sku || "--"}</Td>
-                        <Td>
-                          <Badge colorScheme="green" fontSize="xs">Created</Badge>
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </Box>
-            </Box>
-          )}
-
-          {result.errors.length > 0 && (
-            <Box>
-              <HStack mb="8px">
-                <Icon as={MdError} color="red.500" />
-                <Text fontSize="sm" fontWeight="600">
-                  {result.errors.length} error(s)
-                </Text>
-              </HStack>
-              <Box overflowX="auto" maxH="200px" overflowY="auto" borderRadius="8px" border="1px solid" borderColor={borderColor}>
-                <Table size="sm" variant="simple">
-                  <Thead position="sticky" top="0" bg={tableBg}>
-                    <Tr>
-                      <Th>Row</Th>
-                      <Th>Error</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {result.errors.map((err, i) => (
-                      <Tr key={i}>
-                        <Td fontSize="sm">{err.row || i + 1}</Td>
-                        <Td fontSize="sm" color="red.500">{err.error || err.message || JSON.stringify(err)}</Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </Box>
-            </Box>
-          )}
-        </Box>
       )}
     </VStack>
   );

@@ -8,6 +8,7 @@ import {
   MdRequestQuote,
   MdNotifications,
   MdPeople,
+  MdHistory,
 } from "react-icons/md";
 
 // Admin Imports
@@ -18,6 +19,7 @@ import Orders from "views/admin/orders";
 import Quotes from "views/admin/quotes";
 import Notifications from "views/admin/notifications";
 import Customers from "views/admin/customers";
+import Logs from "views/admin/logs";
 
 const routes = [
   {
@@ -74,6 +76,13 @@ const routes = [
     path: "/customers",
     icon: <Icon as={MdPeople} width="20px" height="20px" color="inherit" />,
     component: <Customers />,
+  },
+  {
+    name: "Logs",
+    layout: "/admin",
+    path: "/logs",
+    icon: <Icon as={MdHistory} width="20px" height="20px" color="inherit" />,
+    component: <Logs />,
   },
 ];
 

@@ -34,6 +34,7 @@ import {
   Tab,
   TabPanel,
   Tooltip,
+  Checkbox,
 } from "@chakra-ui/react";
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCloudUpload } from "react-icons/md";
 import Card from "components/card/Card";
@@ -41,6 +42,7 @@ import { getAllProducts, deleteProduct } from "api/products";
 import { useNotifications } from "contexts/NotificationContext";
 import ProductForm from "./ProductForm";
 import BulkUpload from "./BulkUpload";
+import Pagination from "components/pagination/Pagination";
 
 const FALLBACK_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23E2E8F0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23A0AEC0' font-size='10'%3ENo img%3C/text%3E%3C/svg%3E";
 
@@ -58,6 +60,10 @@ export default function Products() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const pageSize = 10;
 
   const {
     isOpen: isFormOpen,
@@ -68,6 +74,11 @@ export default function Products() {
     isOpen: isDeleteOpen,
     onOpen: onDeleteOpen,
     onClose: onDeleteClose,
+  } = useDisclosure();
+  const {
+    isOpen: isBulkDeleteOpen,
+    onOpen: onBulkDeleteOpen,
+    onClose: onBulkDeleteClose,
   } = useDisclosure();
 
   const fetchProducts = useCallback(async () => {
@@ -91,6 +102,10 @@ export default function Products() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -121,6 +136,59 @@ export default function Products() {
   const handleFormSuccess = () => {
     onFormClose();
     setSelectedProduct(null);
+    fetchProducts();
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (pageProducts) => {
+    const pageIds = pageProducts.map((p) => p.id);
+    const allSelected = pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    const ids = [...selectedIds];
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of ids) {
+      try {
+        await deleteProduct(id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    toast({
+      title: `Deleted ${successCount} product${successCount !== 1 ? "s" : ""}`,
+      description: failCount > 0 ? `${failCount} failed to delete` : undefined,
+      status: failCount > 0 ? "warning" : "success",
+      duration: 3000,
+    });
+    addNotification({
+      type: "success",
+      title: "Bulk delete completed",
+      description: `${successCount} product${successCount !== 1 ? "s" : ""} removed`,
+    });
+    setSelectedIds(new Set());
+    onBulkDeleteClose();
+    setBulkDeleting(false);
     fetchProducts();
   };
 
@@ -174,20 +242,33 @@ export default function Products() {
                 flexWrap="wrap"
                 gap="10px"
               >
-                <InputGroup maxW="320px" size="md">
-                  <InputLeftElement>
-                    <Icon as={MdSearch} color="gray.400" />
-                  </InputLeftElement>
-                  <Input
-                    placeholder="Search products..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    borderRadius="12px"
-                    bg={headerBg}
-                    border="none"
-                    _focus={{ bg: "white", border: "1px solid", borderColor: "brand.500" }}
-                  />
-                </InputGroup>
+                <HStack spacing="10px" flex="1">
+                  <InputGroup maxW="320px" size="md">
+                    <InputLeftElement>
+                      <Icon as={MdSearch} color="gray.400" />
+                    </InputLeftElement>
+                    <Input
+                      placeholder="Search products..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      borderRadius="12px"
+                      bg={headerBg}
+                      border="none"
+                      _focus={{ bg: "white", border: "1px solid", borderColor: "brand.500" }}
+                    />
+                  </InputGroup>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      leftIcon={<Icon as={MdDelete} />}
+                      colorScheme="red"
+                      size="md"
+                      borderRadius="12px"
+                      onClick={onBulkDeleteOpen}
+                    >
+                      Delete ({selectedIds.size})
+                    </Button>
+                  )}
+                </HStack>
                 <Button
                   leftIcon={<Icon as={MdAdd} />}
                   variant="brand"
@@ -221,11 +302,26 @@ export default function Products() {
                       : "Create your first product to get started"}
                   </Text>
                 </Flex>
-              ) : (
+              ) : (() => {
+                const totalPages = Math.ceil(products.length / pageSize);
+                const paginatedProducts = products.slice(
+                  (currentPage - 1) * pageSize,
+                  currentPage * pageSize
+                );
+                return (
+                <>
                 <Box overflowX="auto" borderRadius="12px" border="1px solid" borderColor={borderColor}>
                   <Table variant="simple" size="md">
                     <Thead>
                       <Tr bg={headerBg}>
+                        <Th borderColor={borderColor} w="40px" px="12px">
+                          <Checkbox
+                            isChecked={paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedIds.has(p.id))}
+                            isIndeterminate={paginatedProducts.some((p) => selectedIds.has(p.id)) && !paginatedProducts.every((p) => selectedIds.has(p.id))}
+                            onChange={() => toggleSelectAll(paginatedProducts)}
+                            colorScheme="brand"
+                          />
+                        </Th>
                         <Th borderColor={borderColor} fontSize="xs" textTransform="uppercase" letterSpacing="wider">Image</Th>
                         <Th borderColor={borderColor} fontSize="xs" textTransform="uppercase" letterSpacing="wider">Product</Th>
                         <Th borderColor={borderColor} fontSize="xs" textTransform="uppercase" letterSpacing="wider">SKU</Th>
@@ -236,8 +332,15 @@ export default function Products() {
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {products.map((product) => (
-                        <Tr key={product.id} _hover={{ bg: rowHover }} transition="background 0.15s">
+                      {paginatedProducts.map((product) => (
+                        <Tr key={product.id} _hover={{ bg: rowHover }} transition="background 0.15s" bg={selectedIds.has(product.id) ? "brand.50" : undefined} _dark={selectedIds.has(product.id) ? { bg: "whiteAlpha.100" } : undefined}>
+                          <Td borderColor={borderColor} px="12px">
+                            <Checkbox
+                              isChecked={selectedIds.has(product.id)}
+                              onChange={() => toggleSelect(product.id)}
+                              colorScheme="brand"
+                            />
+                          </Td>
                           <Td borderColor={borderColor} py="12px">
                             <Image
                               src={product.images?.[0] || FALLBACK_IMG}
@@ -272,7 +375,7 @@ export default function Products() {
                           </Td>
                           <Td borderColor={borderColor} isNumeric>
                             <Text color={textColor} fontWeight="600" fontSize="sm">
-                              ${product.price?.toFixed(2)}
+                              GH₵{product.price?.toFixed(2)}
                             </Text>
                           </Td>
                           <Td borderColor={borderColor} isNumeric>
@@ -333,7 +436,16 @@ export default function Products() {
                     </Tbody>
                   </Table>
                 </Box>
-              )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={products.length}
+                  pageSize={pageSize}
+                />
+                </>
+                );
+              })()}
             </TabPanel>
 
             {/* Bulk Upload Tab */}
@@ -388,6 +500,37 @@ export default function Products() {
               borderRadius="10px"
             >
               Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal isOpen={isBulkDeleteOpen} onClose={onBulkDeleteClose} isCentered size="sm">
+        <ModalOverlay bg="blackAlpha.400" backdropFilter="blur(4px)" />
+        <ModalContent borderRadius="16px">
+          <ModalHeader>Delete {selectedIds.size} Product{selectedIds.size !== 1 ? "s" : ""}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>
+              Are you sure you want to delete{" "}
+              <Text as="span" fontWeight="700">{selectedIds.size} selected product{selectedIds.size !== 1 ? "s" : ""}</Text>?
+            </Text>
+            <Text fontSize="sm" color="gray.500" mt="8px">
+              This action cannot be undone. All associated images will also be removed.
+            </Text>
+          </ModalBody>
+          <ModalFooter gap="8px">
+            <Button variant="ghost" onClick={onBulkDeleteClose} borderRadius="10px">
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleBulkDelete}
+              isLoading={bulkDeleting}
+              borderRadius="10px"
+            >
+              Delete All
             </Button>
           </ModalFooter>
         </ModalContent>

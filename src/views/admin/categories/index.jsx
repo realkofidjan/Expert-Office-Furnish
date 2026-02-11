@@ -28,6 +28,7 @@ import {
   Spinner,
   IconButton,
   Textarea,
+  Checkbox,
 } from "@chakra-ui/react";
 import { MdAdd, MdEdit, MdDelete } from "react-icons/md";
 import Card from "components/card/Card";
@@ -55,6 +56,14 @@ export default function Categories() {
   const [editTarget, setEditTarget] = useState(null);
   const [parentCategory, setParentCategory] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedCatIds, setSelectedCatIds] = useState(new Set());
+  const [selectedSubIds, setSelectedSubIds] = useState(new Map()); // Map<catId, Set<subId>>
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const {
+    isOpen: isBulkDeleteOpen,
+    onOpen: onBulkDeleteOpen,
+    onClose: onBulkDeleteClose,
+  } = useDisclosure();
 
   const fetchCategories = useCallback(async () => {
     setLoading(true);
@@ -171,6 +180,75 @@ export default function Categories() {
     }
   };
 
+  const toggleCat = (catId) => {
+    setSelectedCatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  };
+
+  const toggleSub = (catId, subId) => {
+    setSelectedSubIds((prev) => {
+      const next = new Map(prev);
+      const subs = new Set(next.get(catId) || []);
+      if (subs.has(subId)) subs.delete(subId);
+      else subs.add(subId);
+      if (subs.size === 0) next.delete(catId);
+      else next.set(catId, subs);
+      return next;
+    });
+  };
+
+  const totalSelected = selectedCatIds.size + [...selectedSubIds.values()].reduce((sum, s) => sum + s.size, 0);
+
+  const clearSelection = () => {
+    setSelectedCatIds(new Set());
+    setSelectedSubIds(new Map());
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    // Delete selected subcategories first
+    for (const [catId, subIds] of selectedSubIds) {
+      for (const subId of subIds) {
+        try {
+          await deleteSubcategory(catId, subId);
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+    }
+    // Then delete selected categories
+    for (const catId of selectedCatIds) {
+      try {
+        await deleteCategory(catId);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    toast({
+      title: `Deleted ${successCount} item${successCount !== 1 ? "s" : ""}`,
+      description: failCount > 0 ? `${failCount} failed to delete` : undefined,
+      status: failCount > 0 ? "warning" : "success",
+      duration: 3000,
+    });
+    addNotification({
+      type: "success",
+      title: "Bulk delete completed",
+      description: `${successCount} item${successCount !== 1 ? "s" : ""} removed`,
+    });
+    clearSelection();
+    onBulkDeleteClose();
+    setBulkDeleting(false);
+    fetchCategories();
+  };
+
   const modalTitle = {
     addCategory: "Add Category",
     editCategory: "Edit Category",
@@ -181,10 +259,33 @@ export default function Categories() {
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Card p="20px">
-        <Flex justify="space-between" align="center" mb="20px">
-          <Text fontSize="xl" fontWeight="700" color={textColor}>
-            Categories ({categories.length})
-          </Text>
+        <Flex justify="space-between" align="center" mb="20px" flexWrap="wrap" gap="10px">
+          <HStack spacing="12px">
+            <Text fontSize="xl" fontWeight="700" color={textColor}>
+              Categories ({categories.length})
+            </Text>
+            {totalSelected > 0 && (
+              <Button
+                leftIcon={<Icon as={MdDelete} />}
+                colorScheme="red"
+                size="sm"
+                borderRadius="10px"
+                onClick={onBulkDeleteOpen}
+              >
+                Delete ({totalSelected})
+              </Button>
+            )}
+            {totalSelected > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                borderRadius="10px"
+                onClick={clearSelection}
+              >
+                Clear
+              </Button>
+            )}
+          </HStack>
           <Button
             leftIcon={<Icon as={MdAdd} />}
             variant="brand"
@@ -207,11 +308,21 @@ export default function Categories() {
             {categories.map((cat) => (
               <AccordionItem key={cat.category_id} border="none" mb="8px">
                 <AccordionButton
-                  bg="gray.50"
-                  _dark={{ bg: "whiteAlpha.100" }}
+                  bg={selectedCatIds.has(cat.category_id) ? "brand.50" : "gray.50"}
+                  _dark={{ bg: selectedCatIds.has(cat.category_id) ? "whiteAlpha.200" : "whiteAlpha.100" }}
                   borderRadius="12px"
                   p="16px"
                 >
+                  <Checkbox
+                    isChecked={selectedCatIds.has(cat.category_id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleCat(cat.category_id);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    colorScheme="brand"
+                    mr="12px"
+                  />
                   <Box flex="1" textAlign="left">
                     <Text fontWeight="600" color={textColor}>
                       {cat.name}
@@ -266,22 +377,29 @@ export default function Categories() {
                           justify="space-between"
                           align="center"
                           p="10px 16px"
-                          bg="white"
-                          _dark={{ bg: "whiteAlpha.50" }}
+                          bg={selectedSubIds.get(cat.category_id)?.has(sub.subcategory_id) ? "brand.50" : "white"}
+                          _dark={{ bg: selectedSubIds.get(cat.category_id)?.has(sub.subcategory_id) ? "whiteAlpha.200" : "whiteAlpha.50" }}
                           borderRadius="8px"
                           border="1px solid"
-                          borderColor="gray.100"
+                          borderColor={selectedSubIds.get(cat.category_id)?.has(sub.subcategory_id) ? "brand.200" : "gray.100"}
                         >
-                          <Box>
-                            <Text fontWeight="500" color={textColor}>
-                              {sub.name}
-                            </Text>
-                            {sub.description && (
-                              <Text fontSize="sm" color="gray.500">
-                                {sub.description}
+                          <HStack spacing="12px">
+                            <Checkbox
+                              isChecked={selectedSubIds.get(cat.category_id)?.has(sub.subcategory_id) || false}
+                              onChange={() => toggleSub(cat.category_id, sub.subcategory_id)}
+                              colorScheme="brand"
+                            />
+                            <Box>
+                              <Text fontWeight="500" color={textColor}>
+                                {sub.name}
                               </Text>
-                            )}
-                          </Box>
+                              {sub.description && (
+                                <Text fontSize="sm" color="gray.500">
+                                  {sub.description}
+                                </Text>
+                              )}
+                            </Box>
+                          </HStack>
                           <HStack spacing="4px">
                             <IconButton
                               size="xs"
@@ -350,6 +468,42 @@ export default function Categories() {
               isLoading={submitting}
             >
               Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal isOpen={isBulkDeleteOpen} onClose={onBulkDeleteClose} isCentered size="sm">
+        <ModalOverlay bg="blackAlpha.400" backdropFilter="blur(4px)" />
+        <ModalContent borderRadius="16px">
+          <ModalHeader>Delete {totalSelected} Item{totalSelected !== 1 ? "s" : ""}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>
+              Are you sure you want to delete{" "}
+              <Text as="span" fontWeight="700">{totalSelected} selected item{totalSelected !== 1 ? "s" : ""}</Text>?
+            </Text>
+            {selectedCatIds.size > 0 && (
+              <Text fontSize="sm" color="red.500" mt="8px">
+                Deleting a category will also remove all its subcategories.
+              </Text>
+            )}
+            <Text fontSize="sm" color="gray.500" mt="8px">
+              This action cannot be undone.
+            </Text>
+          </ModalBody>
+          <ModalFooter gap="8px">
+            <Button variant="ghost" onClick={onBulkDeleteClose} borderRadius="10px">
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleBulkDelete}
+              isLoading={bulkDeleting}
+              borderRadius="10px"
+            >
+              Delete All
             </Button>
           </ModalFooter>
         </ModalContent>

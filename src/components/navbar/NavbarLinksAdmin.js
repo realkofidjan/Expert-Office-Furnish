@@ -17,7 +17,7 @@ import {
 import { SearchBar } from 'components/navbar/searchBar/SearchBar';
 import PropTypes from 'prop-types';
 import React from 'react';
-import { MdNotificationsNone, MdCheckCircle, MdError, MdInfo, MdDeleteSweep } from 'react-icons/md';
+import { MdNotificationsNone, MdCheckCircle, MdError, MdInfo, MdDeleteSweep, MdOpenInNew } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -95,6 +95,28 @@ export default function HeaderLinks(props) {
         me="10px"
         borderRadius="30px"
       />
+
+      <Button
+        as="a"
+        href="https://expertofficefurnish.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="ghost"
+        p="0px"
+        minW="unset"
+        minH="unset"
+        h="18px"
+        w="max-content"
+        me="10px"
+        title="Visit main site"
+      >
+        <Icon
+          h="18px"
+          w="18px"
+          color={navbarIcon}
+          as={MdOpenInNew}
+        />
+      </Button>
 
       {/* Notification Bell */}
       <Menu>

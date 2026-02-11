@@ -1,9 +1,8 @@
 import React from "react";
 import { Box, Flex, Image, useColorModeValue } from "@chakra-ui/react";
-import logoWhite from "assets/img/layout/logoWhite.png";
+import logo from "assets/img/layout/Logo.png";
 
 export function SidebarBrand({ collapsed }) {
-  const logoFilter = useColorModeValue("invert(1)", "none");
   const dividerColor = useColorModeValue("gray.200", "whiteAlpha.200");
 
   return (
@@ -12,18 +11,17 @@ export function SidebarBrand({ collapsed }) {
         align="center"
         justify="center"
         my="28px"
-        minH="28px"
+        minH="36px"
         overflow="hidden"
       >
         <Image
-          src={logoWhite}
+          src={logo}
           alt="Expert Office Furnish"
-          h="28px"
+          h="36px"
           w="auto"
-          maxW={collapsed ? "32px" : "200px"}
+          maxW={collapsed ? "36px" : "200px"}
           objectFit="contain"
-          filter={logoFilter}
-          transition="max-width 0.3s ease, filter 0.2s"
+          transition="max-width 0.3s ease"
         />
       </Flex>
       <Box
