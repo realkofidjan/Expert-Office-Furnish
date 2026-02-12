@@ -50,6 +50,7 @@ export default function BulkUpload({ onSuccess }) {
   const errorBg = useColorModeValue("red.50", "rgba(254,178,178,0.1)");
   const warningBg = useColorModeValue("orange.50", "rgba(251,211,141,0.1)");
   const validBg = useColorModeValue("green.50", "rgba(154,230,180,0.08)");
+  // eslint-disable-next-line
   const textColor = useColorModeValue("secondaryGray.900", "white");
   const toast = useToast();
   const { addNotification } = useNotifications();
