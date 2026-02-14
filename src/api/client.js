@@ -21,7 +21,7 @@ client.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/auth/sign-in";
+      window.location.href = "/admin/auth/sign-in";
     }
     return Promise.reject(error);
   }

@@ -1,5 +1,5 @@
 import "./assets/css/App.css";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import AuthLayout from "./layouts/auth";
 import AdminLayout from "./layouts/admin";
 import { ChakraProvider } from "@chakra-ui/react";
@@ -17,12 +17,11 @@ export default function Main() {
         <Routes>
           <Route path="auth/*" element={<AuthLayout />} />
           <Route
-            path="admin/*"
+            path="/*"
             element={
               <AdminLayout theme={currentTheme} setTheme={setCurrentTheme} />
             }
           />
-          <Route path="/" element={<Navigate to="/admin" replace />} />
         </Routes>
         </NotificationProvider>
       </AuthProvider>

@@ -1,7 +1,8 @@
 /* eslint-disable */
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Box, Flex, Text, Tooltip, useColorModeValue } from "@chakra-ui/react";
+import { Badge, Box, Flex, Text, Tooltip, useColorModeValue } from "@chakra-ui/react";
+import { useAuth } from "contexts/AuthContext";
 
 export function SidebarLinks(props) {
   let location = useLocation();
@@ -10,6 +11,7 @@ export function SidebarLinks(props) {
   let textColor = useColorModeValue("secondaryGray.500", "white");
   let brandColor = useColorModeValue("brand.500", "brand.400");
   let activeBg = useColorModeValue("brand.50", "whiteAlpha.100");
+  const { user } = useAuth();
 
   const { routes, collapsed } = props;
 
@@ -30,11 +32,14 @@ export function SidebarLinks(props) {
         route.layout === "/auth" ||
         route.layout === "/rtl"
       ) {
-        const isActive = activeRoute(route.path.toLowerCase());
+        // Role-based filtering
+        if (route.requiredRole && user?.role !== route.requiredRole) {
+          return null;
+        }
 
-        // Single unified layout for both states.
-        // The icon is always centered at 40px from left (center of the 80px collapsed width).
-        // When expanded, the text shows to the right. When collapsed, overflow hides it.
+        const isComingSoon = route.comingSoon;
+        const isActive = !isComingSoon && activeRoute(route.path.toLowerCase());
+
         const linkContent = (
           <Flex
             align="center"
@@ -44,13 +49,13 @@ export function SidebarLinks(props) {
             px="0"
             borderRadius="12px"
             bg={isActive ? activeBg : "transparent"}
-            cursor="pointer"
+            cursor={isComingSoon ? "default" : "pointer"}
             transition="background 0.2s"
-            _hover={{ bg: activeBg }}
+            _hover={isComingSoon ? {} : { bg: activeBg }}
             position="relative"
             overflow="hidden"
+            opacity={isComingSoon ? 0.5 : 1}
           >
-            {/* Icon — always centered in the first 56px zone (80 - 12*2 margin = 56px) */}
             <Flex
               align="center"
               justify="center"
@@ -63,7 +68,6 @@ export function SidebarLinks(props) {
               {route.icon}
             </Flex>
 
-            {/* Text — flows naturally after icon, clipped by overflow:hidden on parent */}
             <Text
               color={isActive ? activeColor : textColor}
               fontWeight={isActive ? "bold" : "normal"}
@@ -75,7 +79,21 @@ export function SidebarLinks(props) {
               {route.name}
             </Text>
 
-            {/* Active indicator bar on the right */}
+            {isComingSoon && !collapsed && (
+              <Badge
+                ml="8px"
+                fontSize="9px"
+                colorScheme="gray"
+                variant="subtle"
+                borderRadius="full"
+                px="6px"
+                opacity={collapsed ? 0 : 1}
+                transition="opacity 0.2s"
+              >
+                Soon
+              </Badge>
+            )}
+
             {isActive && (
               <Box
                 position="absolute"
@@ -91,9 +109,29 @@ export function SidebarLinks(props) {
           </Flex>
         );
 
+        if (isComingSoon) {
+          if (collapsed) {
+            return (
+              <Box key={index}>
+                <Tooltip
+                  label={`${route.name} (Coming Soon)`}
+                  placement="right"
+                  hasArrow
+                  fontSize="sm"
+                  borderRadius="8px"
+                  openDelay={200}
+                >
+                  {linkContent}
+                </Tooltip>
+              </Box>
+            );
+          }
+          return <Box key={index}>{linkContent}</Box>;
+        }
+
         if (collapsed) {
           return (
-            <NavLink key={index} to={route.layout + route.path}>
+            <NavLink key={index} to={route.path}>
               <Tooltip
                 label={route.name}
                 placement="right"
@@ -109,7 +147,7 @@ export function SidebarLinks(props) {
         }
 
         return (
-          <NavLink key={index} to={route.layout + route.path}>
+          <NavLink key={index} to={route.path}>
             {linkContent}
           </NavLink>
         );

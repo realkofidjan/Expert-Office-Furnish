@@ -22,16 +22,17 @@ import {
   MdDashboard,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import { useSearch } from "contexts/SearchContext";
 
 const navItems = [
-  { name: "Dashboard", path: "/admin/dashboard", icon: MdDashboard, keywords: ["dashboard", "home", "overview", "stats"] },
-  { name: "Products", path: "/admin/products", icon: MdInventory2, keywords: ["products", "inventory", "items", "stock", "sku"] },
-  { name: "Categories", path: "/admin/categories", icon: MdCategory, keywords: ["categories", "subcategories", "organize"] },
-  { name: "Orders", path: "/admin/orders", icon: MdShoppingCart, keywords: ["orders", "checkout", "delivery", "payment"] },
-  { name: "Quotes", path: "/admin/quotes", icon: MdRequestQuote, keywords: ["quotes", "requests", "pricing"] },
-  { name: "Notifications", path: "/admin/notifications", icon: MdNotifications, keywords: ["notifications", "alerts", "messages"] },
-  { name: "Customers", path: "/admin/customers", icon: MdPeople, keywords: ["customers", "users", "clients"] },
-  { name: "Logs", path: "/admin/logs", icon: MdHistory, keywords: ["logs", "activity", "audit", "history"] },
+  { name: "Dashboard", path: "/dashboard", icon: MdDashboard, keywords: ["dashboard", "home", "overview", "stats"] },
+  { name: "Products", path: "/products", icon: MdInventory2, keywords: ["products", "inventory", "items", "stock", "sku"] },
+  { name: "Categories", path: "/categories", icon: MdCategory, keywords: ["categories", "subcategories", "organize"] },
+  { name: "Orders", path: "/orders", icon: MdShoppingCart, keywords: ["orders", "checkout", "delivery", "payment"] },
+  { name: "Quotes", path: "/quotes", icon: MdRequestQuote, keywords: ["quotes", "requests", "pricing"] },
+  { name: "Notifications", path: "/notifications", icon: MdNotifications, keywords: ["notifications", "alerts", "messages"] },
+  { name: "Customers", path: "/customers", icon: MdPeople, keywords: ["customers", "users", "clients"] },
+  { name: "Logs", path: "/logs", icon: MdHistory, keywords: ["logs", "activity", "audit", "history"] },
 ];
 
 export function SearchBar(props) {
@@ -54,6 +55,7 @@ export function SearchBar(props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const wrapperRef = useRef(null);
   const navigate = useNavigate();
+  const { setSearchQuery } = useSearch();
 
   const filtered = query.trim()
     ? navItems.filter((item) => {
@@ -82,6 +84,7 @@ export function SearchBar(props) {
   function handleSelect(item) {
     navigate(item.path);
     setQuery("");
+    setSearchQuery("");
     setShowDropdown(false);
   }
 
@@ -132,6 +135,7 @@ export function SearchBar(props) {
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
+            setSearchQuery(e.target.value);
             setShowDropdown(true);
           }}
           onFocus={() => query.trim() && setShowDropdown(true)}

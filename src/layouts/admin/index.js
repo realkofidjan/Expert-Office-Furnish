@@ -4,6 +4,7 @@ import Navbar from 'components/navbar/NavbarAdmin.js';
 import Sidebar, { SidebarResponsive, SIDEBAR_TOTAL_EXPANDED, SIDEBAR_TOTAL_COLLAPSED } from 'components/sidebar/Sidebar.js';
 import { SidebarContext } from 'contexts/SidebarContext';
 import { useAuth } from 'contexts/AuthContext';
+import { SearchProvider } from 'contexts/SearchContext';
 import React, { useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import routes from 'routes.js';
@@ -12,7 +13,7 @@ export default function AdminLayout(props) {
   const { ...rest } = props;
   const [fixed] = useState(false);
   const [toggleSidebar, setToggleSidebar] = useState(false);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   // Desktop sidebar: expanded (full) or collapsed (icons only) — always visible
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -99,6 +100,14 @@ export default function AdminLayout(props) {
   const getRoutes = (routes) => {
     return routes.map((route, key) => {
       if (route.layout === '/admin') {
+        // Skip coming soon routes (no component)
+        if (route.comingSoon) return null;
+        // Role-gate restricted routes
+        if (route.requiredRole && user?.role !== route.requiredRole) {
+          return (
+            <Route path={`${route.path}`} element={<Navigate to="/dashboard" replace />} key={key} />
+          );
+        }
         return (
           <Route path={`${route.path}`} element={route.component} key={key} />
         );
@@ -112,6 +121,7 @@ export default function AdminLayout(props) {
   };
   document.documentElement.dir = 'ltr';
   return (
+    <SearchProvider>
     <Box>
       <SidebarContext.Provider
         value={{
@@ -168,7 +178,7 @@ export default function AdminLayout(props) {
               {getRoutes(routes)}
               <Route
                 path="/"
-                element={<Navigate to="/admin/dashboard" replace />}
+                element={<Navigate to="/dashboard" replace />}
               />
             </Routes>
           </Box>
@@ -178,5 +188,6 @@ export default function AdminLayout(props) {
         </Box>
       </SidebarContext.Provider>
     </Box>
+    </SearchProvider>
   );
 }

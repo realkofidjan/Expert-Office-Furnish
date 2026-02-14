@@ -43,6 +43,7 @@ import { useNotifications } from "contexts/NotificationContext";
 import ProductForm from "./ProductForm";
 import BulkUpload from "./BulkUpload";
 import Pagination from "components/pagination/Pagination";
+import { useSearch } from "contexts/SearchContext";
 
 const FALLBACK_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23E2E8F0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23A0AEC0' font-size='10'%3ENo img%3C/text%3E%3C/svg%3E";
 
@@ -56,6 +57,7 @@ export default function Products() {
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { searchQuery } = useSearch();
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -102,6 +104,10 @@ export default function Products() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);

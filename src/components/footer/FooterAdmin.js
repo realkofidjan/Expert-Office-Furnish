@@ -41,6 +41,17 @@ export default function Footer() {
           Expert Office Furnish. All Rights Reserved.
         </Text>
       </Text>
+      <List display='flex'>
+        <ListItem me={{ base: "20px", md: "44px" }}>
+          <Link
+            fontWeight='500'
+            color={textColor}
+            href='/'
+            isExternal>
+            Client Site
+          </Link>
+        </ListItem>
+      </List>
     </Flex>
   );
 }

@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
       const decoded = parseJwt(jwt);
       setUser(decoded);
       localStorage.setItem("user", JSON.stringify(decoded));
-      return { success: true };
+      return { success: true, user: decoded };
     } catch (error) {
       const message =
         error.response?.data?.error || "Login failed. Please try again.";
@@ -75,8 +75,12 @@ export function AuthProvider({ children }) {
     );
   };
 
+  const isSuperAdmin = () => {
+    return user && user.role === "super-admin";
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading, isAdmin, isSuperAdmin }}>
       {children}
     </AuthContext.Provider>
   );

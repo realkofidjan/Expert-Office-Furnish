@@ -19,6 +19,14 @@ export const createProduct = async (formData) => {
   return response.data;
 };
 
+export const editProduct = async (productId, data) => {
+  const response = await client.post("/edit-product", {
+    product_id: productId,
+    ...data,
+  });
+  return response.data;
+};
+
 export const deleteProduct = async (productId) => {
   const response = await client.delete("/delete-product", {
     params: { product_id: productId },

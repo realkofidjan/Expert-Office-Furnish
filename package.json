@@ -2,6 +2,7 @@
   "name": "expert-office-furnish",
   "version": "2.0.0",
   "private": true,
+  "homepage": "/admin",
   "dependencies": {
     "@babel/preset-react": "^7.18.6",
     "@chakra-ui/icons": "^2.0.19",
@@ -36,7 +37,9 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "concurrently \"react-scripts start\" \"npm run dev:client\"",
+    "start:admin": "react-scripts start",
+    "dev:client": "cd client-site && npm run dev",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -68,6 +71,7 @@
   "devDependencies": {
     "anymatch": "^3.1.3",
     "chokidar": "^3.6.0",
+    "concurrently": "^9.2.1",
     "gh-pages": "^6.1.1",
     "micromatch": "^4.0.7"
   }

@@ -42,6 +42,7 @@ import {
   deleteSubcategory,
 } from "api/categories";
 import { useNotifications } from "contexts/NotificationContext";
+import { useSearch } from "contexts/SearchContext";
 
 export default function Categories() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
@@ -59,6 +60,7 @@ export default function Categories() {
   const [selectedCatIds, setSelectedCatIds] = useState(new Set());
   const [selectedSubIds, setSelectedSubIds] = useState(new Map()); // Map<catId, Set<subId>>
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const { searchQuery } = useSearch();
   const {
     isOpen: isBulkDeleteOpen,
     onOpen: onBulkDeleteOpen,
@@ -249,6 +251,16 @@ export default function Categories() {
     fetchCategories();
   };
 
+  const filteredCategories = searchQuery
+    ? categories.filter((cat) => {
+        const q = searchQuery.toLowerCase();
+        if (cat.name.toLowerCase().includes(q)) return true;
+        if (cat.description?.toLowerCase().includes(q)) return true;
+        if (cat.subcategories?.some((sub) => sub.name.toLowerCase().includes(q))) return true;
+        return false;
+      })
+    : categories;
+
   const modalTitle = {
     addCategory: "Add Category",
     editCategory: "Edit Category",
@@ -262,7 +274,7 @@ export default function Categories() {
         <Flex justify="space-between" align="center" mb="20px" flexWrap="wrap" gap="10px">
           <HStack spacing="12px">
             <Text fontSize="xl" fontWeight="700" color={textColor}>
-              Categories ({categories.length})
+              Categories ({filteredCategories.length})
             </Text>
             {totalSelected > 0 && (
               <Button
@@ -299,13 +311,13 @@ export default function Categories() {
           <Flex justify="center" py="40px">
             <Spinner size="lg" color="brand.500" />
           </Flex>
-        ) : categories.length === 0 ? (
+        ) : filteredCategories.length === 0 ? (
           <Text color="gray.400" textAlign="center" py="40px">
             No categories found. Add your first category to get started.
           </Text>
         ) : (
           <Accordion allowMultiple>
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               <AccordionItem key={cat.category_id} border="none" mb="8px">
                 <AccordionButton
                   bg={selectedCatIds.has(cat.category_id) ? "brand.50" : "gray.50"}

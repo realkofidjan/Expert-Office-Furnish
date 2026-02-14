@@ -17,11 +17,16 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  Select,
+  useToast,
 } from "@chakra-ui/react";
 import { MdPeople, MdSearch } from "react-icons/md";
 import Card from "components/card/Card";
 import { listCustomers } from "api/customers";
+import { changeUserRole } from "api/users";
+import { useAuth } from "contexts/AuthContext";
 import Pagination from "components/pagination/Pagination";
+import { useSearch } from "contexts/SearchContext";
 
 export default function Customers() {
   const textColor = useColorModeValue("secondaryGray.900", "white");
@@ -29,9 +34,13 @@ export default function Customers() {
   const headerBg = useColorModeValue("gray.50", "whiteAlpha.50");
   const rowHover = useColorModeValue("gray.50", "whiteAlpha.50");
 
+  const toast = useToast();
+  const { isSuperAdmin } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { searchQuery } = useSearch();
   const [search, setSearch] = useState("");
+  const [changingRole, setChangingRole] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
@@ -52,8 +61,37 @@ export default function Customers() {
   }, [fetchCustomers]);
 
   useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [search]);
+
+  const handleRoleChange = async (customer, newRole) => {
+    const customerId = customer.id || customer.uid;
+    if (!customerId) return;
+    if (!window.confirm(`Change ${customer.email || "this user"}'s role to "${newRole}"?`)) return;
+    setChangingRole(customerId);
+    try {
+      await changeUserRole(customerId, newRole);
+      toast({ title: "Role updated", status: "success", duration: 2000 });
+      setCustomers((prev) =>
+        prev.map((c) =>
+          (c.id || c.uid) === customerId ? { ...c, role: newRole } : c
+        )
+      );
+    } catch (err) {
+      toast({
+        title: "Failed to update role",
+        description: err.response?.data?.error || err.message,
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setChangingRole(null);
+    }
+  };
 
   const filtered = customers.filter((c) => {
     if (!search) return true;
@@ -147,15 +185,32 @@ export default function Customers() {
                       </Text>
                     </Td>
                     <Td borderColor={borderColor}>
-                      <Badge
-                        colorScheme={customer.role === "admin" || customer.role === "super-admin" ? "purple" : "gray"}
-                        fontSize="xs"
-                        borderRadius="6px"
-                        px="8px"
-                        py="2px"
-                      >
-                        {customer.role || "customer"}
-                      </Badge>
+                      {isSuperAdmin() ? (
+                        <Select
+                          size="xs"
+                          value={customer.role || "customer"}
+                          onChange={(e) => handleRoleChange(customer, e.target.value)}
+                          isDisabled={changingRole === (customer.id || customer.uid)}
+                          borderRadius="6px"
+                          w="130px"
+                          fontSize="xs"
+                        >
+                          <option value="customer">customer</option>
+                          <option value="admin">admin</option>
+                          <option value="sub-admin">sub-admin</option>
+                          <option value="super-admin">super-admin</option>
+                        </Select>
+                      ) : (
+                        <Badge
+                          colorScheme={customer.role === "admin" || customer.role === "super-admin" ? "purple" : "gray"}
+                          fontSize="xs"
+                          borderRadius="6px"
+                          px="8px"
+                          py="2px"
+                        >
+                          {customer.role || "customer"}
+                        </Badge>
+                      )}
                     </Td>
                     <Td borderColor={borderColor}>
                       <Badge

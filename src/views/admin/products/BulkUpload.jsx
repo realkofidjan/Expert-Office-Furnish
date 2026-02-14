@@ -21,6 +21,7 @@ import {
   Td,
   Badge,
   CloseButton,
+  Tooltip,
 } from "@chakra-ui/react";
 import { useDropzone } from "react-dropzone";
 import { MdCloudUpload, MdDownload, MdCheckCircle, MdError, MdWarning, MdPlayArrow, MdArrowBack } from "react-icons/md";
@@ -312,28 +313,6 @@ export default function BulkUpload({ onSuccess }) {
               </Text>
             </Box>
           </HStack>
-          {!validation && !validating && (
-            <Button
-              colorScheme="blue"
-              size="sm"
-              borderRadius="10px"
-              leftIcon={<Icon as={MdPlayArrow} />}
-              onClick={handleValidate}
-            >
-              Validate
-            </Button>
-          )}
-          {validation && (
-            <Button
-              size="sm"
-              variant="outline"
-              borderRadius="10px"
-              onClick={handleValidate}
-              isLoading={validating}
-            >
-              Re-validate
-            </Button>
-          )}
         </Flex>
 
         {validating && (
@@ -418,11 +397,27 @@ export default function BulkUpload({ onSuccess }) {
                   else rowBg = validBg;
                 }
 
-                const colCount = fileHeaders.length + 1 + (isValidated ? 1 : 0);
+                const tooltipLabel = messages.length > 0
+                  ? messages.map((m) => `${m.type === "error" ? "Error" : "Warning"}: ${m.text}`).join("\n")
+                  : "";
 
                 return (
-                  <React.Fragment key={i}>
-                    <Tr bg={rowBg}>
+                  <Tooltip
+                    key={i}
+                    label={tooltipLabel}
+                    isDisabled={messages.length === 0}
+                    placement="bottom-start"
+                    hasArrow
+                    bg={hasErrors ? "red.600" : "orange.500"}
+                    color="white"
+                    fontSize="xs"
+                    borderRadius="8px"
+                    px="12px"
+                    py="8px"
+                    maxW="400px"
+                    whiteSpace="pre-wrap"
+                  >
+                    <Tr bg={rowBg} cursor={messages.length > 0 ? "pointer" : "default"}>
                       <Td fontSize="xs" fontWeight="500" color="gray.500" whiteSpace="nowrap">{rowNum}</Td>
                       {isValidated && (
                         <Td>
@@ -449,29 +444,7 @@ export default function BulkUpload({ onSuccess }) {
                         </Td>
                       ))}
                     </Tr>
-                    {isValidated && messages.length > 0 && (
-                      <Tr bg={rowBg}>
-                        <Td colSpan={colCount} py="4px" px="12px" borderTop="none">
-                          <HStack spacing="12px" flexWrap="wrap">
-                            {messages.map((m, j) => (
-                              <HStack key={j} spacing="4px">
-                                <Icon
-                                  as={m.type === "error" ? MdError : MdWarning}
-                                  color={m.type === "error" ? "red.500" : "orange.500"}
-                                  w="12px"
-                                  h="12px"
-                                  flexShrink={0}
-                                />
-                                <Text fontSize="xs" color={m.type === "error" ? "red.600" : "orange.600"}>
-                                  {m.text}
-                                </Text>
-                              </HStack>
-                            ))}
-                          </HStack>
-                        </Td>
-                      </Tr>
-                    )}
-                  </React.Fragment>
+                  </Tooltip>
                 );
               })}
             </Tbody>
@@ -479,24 +452,35 @@ export default function BulkUpload({ onSuccess }) {
         </Box>
 
         {/* Bottom action bar */}
-        {uploading && (
+        {(uploading || validating) && (
           <Progress size="sm" isIndeterminate colorScheme="brand" borderRadius="full" />
         )}
         <Flex justify="flex-end" gap="10px" pt="4px">
           <Button variant="ghost" size="sm" onClick={handleBack} borderRadius="10px">
             Cancel
           </Button>
+          {validation && (
+            <Button
+              size="sm"
+              variant="outline"
+              borderRadius="10px"
+              onClick={handleValidate}
+              isLoading={validating}
+            >
+              Re-validate
+            </Button>
+          )}
           <Button
             colorScheme="brand"
             size="sm"
-            onClick={handleUpload}
-            isLoading={uploading}
-            isDisabled={!allValid}
+            onClick={!validation ? handleValidate : allValid ? handleUpload : undefined}
+            isLoading={!validation ? validating : uploading}
+            isDisabled={validation && !allValid}
             borderRadius="10px"
-            leftIcon={<Icon as={MdCloudUpload} />}
+            leftIcon={<Icon as={!validation ? MdPlayArrow : MdCloudUpload} />}
           >
             {!validation
-              ? "Validate First"
+              ? "Validate & Upload"
               : allValid
               ? "Finish Upload"
               : "Fix Errors to Upload"}

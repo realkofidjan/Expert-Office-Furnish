@@ -28,6 +28,7 @@ import {
 import { MdRequestQuote, MdVisibility } from "react-icons/md";
 import Card from "components/card/Card";
 import { listQuotes, getQuote } from "api/quotes";
+import { useSearch } from "contexts/SearchContext";
 
 const statusColor = {
   pending: "orange",
@@ -48,6 +49,7 @@ export default function Quotes() {
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const { searchQuery } = useSearch();
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true);
@@ -87,6 +89,18 @@ export default function Quotes() {
     }
   };
 
+  const filteredQuotes = searchQuery
+    ? quotes.filter((q) => {
+        const s = searchQuery.toLowerCase();
+        return (
+          (q.item_description || "").toLowerCase().includes(s) ||
+          (q.product_name || "").toLowerCase().includes(s) ||
+          (q.customer_email || "").toLowerCase().includes(s) ||
+          (q.status || "").toLowerCase().includes(s)
+        );
+      })
+    : quotes;
+
   return (
     <Box pt={{ base: "130px", md: "80px", xl: "80px" }}>
       <Card p="20px">
@@ -98,7 +112,7 @@ export default function Quotes() {
             </Text>
             {!loading && (
               <Badge colorScheme="brand" fontSize="sm" borderRadius="full" px="10px" py="2px">
-                {quotes.length}
+                {filteredQuotes.length}
               </Badge>
             )}
           </HStack>
@@ -108,7 +122,7 @@ export default function Quotes() {
           <Flex justify="center" py="60px">
             <Spinner size="lg" color="brand.500" thickness="3px" />
           </Flex>
-        ) : quotes.length === 0 ? (
+        ) : filteredQuotes.length === 0 ? (
           <Flex direction="column" align="center" py="60px" color="gray.400">
             <Icon as={MdRequestQuote} w="40px" h="40px" mb="12px" />
             <Text fontWeight="500">No quote requests yet</Text>
@@ -128,7 +142,7 @@ export default function Quotes() {
                 </Tr>
               </Thead>
               <Tbody>
-                {quotes.map((quote, i) => (
+                {filteredQuotes.map((quote, i) => (
                   <Tr key={quote.quote_id || quote.id || i} _hover={{ bg: rowHover }}>
                     <Td borderColor={borderColor}>
                       <Text color={textColor} fontWeight="600" fontSize="sm" noOfLines={1} maxW="200px">

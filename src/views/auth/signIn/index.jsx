@@ -33,7 +33,7 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const { login, loading } = useAuth();
+  const { login, logout, loading } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -42,13 +42,26 @@ function SignIn() {
     setError("");
     const result = await login(email, password);
     if (result.success) {
+      // Block non-admin users from accessing the admin panel
+      const role = result.user?.role;
+      if (!role || !["admin", "sub-admin", "super-admin"].includes(role)) {
+        toast({
+          title: "Access denied",
+          description: "Admin access only. Customer portal coming soon.",
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+        });
+        logout();
+        return;
+      }
       toast({
         title: "Signed in successfully",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
-      navigate("/admin/dashboard");
+      navigate("/dashboard");
     } else {
       setError(result.error);
     }

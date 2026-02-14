@@ -9,6 +9,9 @@ import {
   MdNotifications,
   MdPeople,
   MdHistory,
+  MdArticle,
+  MdLocalOffer,
+  MdEmail,
 } from "react-icons/md";
 
 // Admin Imports
@@ -83,6 +86,31 @@ const routes = [
     path: "/logs",
     icon: <Icon as={MdHistory} width="20px" height="20px" color="inherit" />,
     component: <Logs />,
+    requiredRole: "super-admin",
+  },
+  {
+    name: "Blog",
+    layout: "/admin",
+    path: "/blog",
+    icon: <Icon as={MdArticle} width="20px" height="20px" color="inherit" />,
+    component: null,
+    comingSoon: true,
+  },
+  {
+    name: "Discounts",
+    layout: "/admin",
+    path: "/discounts",
+    icon: <Icon as={MdLocalOffer} width="20px" height="20px" color="inherit" />,
+    component: null,
+    comingSoon: true,
+  },
+  {
+    name: "Newsletter",
+    layout: "/admin",
+    path: "/newsletter",
+    icon: <Icon as={MdEmail} width="20px" height="20px" color="inherit" />,
+    component: null,
+    comingSoon: true,
   },
 ];
 
