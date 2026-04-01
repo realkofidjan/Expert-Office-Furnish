@@ -13,10 +13,8 @@ cd ..
 
 # Combine into output/
 rm -rf output
-mkdir -p output/admin
+mkdir -p output
 
-# Client site → root
-cp -r client-site/dist/* output/
+# Admin site (Under Construction) → root
+cp -r build/* output/
 
-# Admin site → /admin
-cp -r build/* output/admin/
